@@ -22,15 +22,19 @@ class MEVInspector:
         rpc: str,
         inspect_db_session: orm.Session,
         trace_db_session: Optional[orm.Session],
+        geth: bool = True,
         max_concurrency: int = 1,
         request_timeout: int = 300,
     ):
         self.inspect_db_session = inspect_db_session
         self.trace_db_session = trace_db_session
-        self.base_provider = get_base_provider(rpc, request_timeout=request_timeout)
-        self.w3 = Web3(self.base_provider, modules={"eth": (AsyncEth,)}, middlewares=[])
+        self.base_provider = get_base_provider(
+            rpc, request_timeout=request_timeout)
+        self.w3 = Web3(self.base_provider, modules={
+                       "eth": (AsyncEth,)}, middlewares=[])
         self.trace_classifier = TraceClassifier()
         self.max_concurrency = asyncio.Semaphore(max_concurrency)
+        self.geth = geth
 
     async def create_from_block(self, block_number: int):
         return await create_from_block_number(
@@ -42,11 +46,12 @@ class MEVInspector:
 
     async def inspect_single_block(self, block: int):
         return await inspect_block(
-            self.inspect_db_session,
-            self.base_provider,
-            self.w3,
-            self.trace_classifier,
-            block,
+            inspect_db_session=self.inspect_db_session,
+            base_provider=self.base_provider,
+            w3=self.w3,
+            geth=self.geth,
+            trace_clasifier=self.trace_classifier,
+            block_number=block,
             trace_db_session=self.trace_db_session,
         )
 

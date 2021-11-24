@@ -40,13 +40,14 @@ async def create_from_block_number(
         block = _find_block(trace_db_session, block_number)
 
     if block is None:
-        block = await _fetch_block(w3, base_provider, block_number)
+        block = await _fetch_block(
+            w3, base_provider, block_number)
         return block
     else:
         return block
 
 
-async def _fetch_block(w3, base_provider, geth, block_number: int, retries: int = 0) -> Block:
+async def _fetch_block(w3, base_provider, block_number: int, geth: bool = True, retries: int = 0) -> Block:
     if not geth:
         block_json, receipts_json, traces_json, base_fee_per_gas = await asyncio.gather(
             w3.eth.get_block(block_number),
@@ -59,7 +60,8 @@ async def _fetch_block(w3, base_provider, geth, block_number: int, retries: int 
             receipts: List[Receipt] = [
                 Receipt(**receipt) for receipt in receipts_json["result"]
             ]
-            traces = [Trace(**trace_json) for trace_json in traces_json["result"]]
+            traces = [Trace(**trace_json)
+                      for trace_json in traces_json["result"]]
         except KeyError as e:
             logger.warning(
                 f"Failed to create objects from block: {block_number}: {e}, retrying: {retries + 1} / 3"
@@ -70,13 +72,14 @@ async def _fetch_block(w3, base_provider, geth, block_number: int, retries: int 
             else:
                 raise
     else:
-        traces = geth_get_tx_traces_parity_format(base_provider, block_json)
-        geth_tx_receipts = geth_get_tx_receipts(
+        block_json = await w3.eth.get_block(block_number)
+        traces = await geth_get_tx_traces_parity_format(base_provider, block_json)
+        geth_tx_receipts = await geth_get_tx_receipts(
             base_provider, block_json["transactions"]
         )
         receipts = geth_receipts_translator(block_json, geth_tx_receipts)
         base_fee_per_gas = 0
-        
+
         return Block(
             block_number=block_number,
             block_timestamp=block_json["timestamp"],
@@ -85,7 +88,7 @@ async def _fetch_block(w3, base_provider, geth, block_number: int, retries: int 
             traces=traces,
             receipts=receipts,
         )
- 
+
 
 def _find_block(
     trace_db_session: orm.Session,
@@ -117,6 +120,7 @@ def _find_block(
         traces=traces,
         receipts=receipts,
     )
+
 
 def _find_block_timestamp(
     trace_db_session: orm.Session,
@@ -206,9 +210,9 @@ def get_transaction_hashes(calls: List[Trace]) -> List[str]:
 # Geth specific additions
 
 
-def geth_get_tx_traces_parity_format(base_provider, block_json):
+async def geth_get_tx_traces_parity_format(base_provider, block_json):
     block_hash = block_json["hash"]
-    block_trace = geth_get_tx_traces(base_provider, block_hash)
+    block_trace = await geth_get_tx_traces(base_provider, block_hash)
     parity_traces = []
     for idx, trace in enumerate(block_trace["result"]):
         if "result" in trace:
@@ -218,8 +222,8 @@ def geth_get_tx_traces_parity_format(base_provider, block_json):
     return parity_traces
 
 
-def geth_get_tx_traces(base_provider, block_hash):
-    block_trace = base_provider.make_request(
+async def geth_get_tx_traces(base_provider, block_hash):
+    block_trace = await base_provider.make_request(
         "debug_traceBlockByHash", [block_hash.hex(), {"tracer": "callTracer"}]
     )
     return block_trace
@@ -256,9 +260,11 @@ def unwrap_tx_trace_for_parity(
                 block_hash=str(block_json["hash"]),
                 block_number=int(block_json["number"]),
                 result=result_dict,
-                subtraces=len(tx_trace["calls"]) if "calls" in tx_trace.keys() else 0,
+                subtraces=len(tx_trace["calls"]
+                              ) if "calls" in tx_trace.keys() else 0,
                 trace_address=position,
-                transaction_hash=block_json["transactions"][tx_pos_in_block].hex(),
+                transaction_hash=block_json["transactions"][tx_pos_in_block].hex(
+                ),
                 transaction_position=tx_pos_in_block,
                 type=TraceType(_calltype_mapping[tx_trace["type"]]),
             )
@@ -293,17 +299,16 @@ async def geth_get_tx_receipts_async(endpoint_uri, transactions):
     geth_tx_receipts = []
     async with aiohttp.ClientSession() as session:
         tasks = [
-            asyncio.create_task(geth_get_tx_receipts_task(session, endpoint_uri, tx))
+            asyncio.create_task(geth_get_tx_receipts_task(
+                session, endpoint_uri, tx))
             for tx in transactions
         ]
         geth_tx_receipts = await asyncio.gather(*tasks)
     return [json.loads(tx_receipts) for tx_receipts in geth_tx_receipts]
 
 
-def geth_get_tx_receipts(base_provider, transactions):
-    return asyncio.run(
-        geth_get_tx_receipts_async(base_provider.endpoint_uri, transactions)
-    )
+async def geth_get_tx_receipts(base_provider, transactions):
+    return await geth_get_tx_receipts_async(base_provider.endpoint_uri, transactions)
 
 
 def geth_receipts_translator(block_json, geth_tx_receipts) -> List[Receipt]:
@@ -316,7 +321,8 @@ def geth_receipts_translator(block_json, geth_tx_receipts) -> List[Receipt]:
     results = []
     for idx, tx_receipt in enumerate(json_decoded_receipts):
         if tx_receipt != None:
-            results.append(unwrap_tx_receipt_for_parity(block_json, idx, tx_receipt))
+            results.append(unwrap_tx_receipt_for_parity(
+                block_json, idx, tx_receipt))
     return results
 
 

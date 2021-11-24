@@ -8,7 +8,7 @@ from typing import (
     Type,
     Coroutine,
 )
-from asyncio.exceptions import TimeoutError
+# from asyncio.exceptions import TimeoutError
 
 from aiohttp.client_exceptions import (
     ClientOSError,
@@ -86,5 +86,5 @@ async def http_retry_with_backoff_request_middleware(
     return await exception_retry_with_backoff_middleware(
         make_request,
         web3,
-        (request_exceptions + aiohttp_exceptions + (TimeoutError,)),
+        (request_exceptions + aiohttp_exceptions),
     )
