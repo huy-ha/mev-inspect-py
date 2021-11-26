@@ -44,7 +44,7 @@ async def inspect_block(
     base_provider,
     w3: Web3,
     geth: bool,
-    trace_clasifier: TraceClassifier,
+    trace_classifier: TraceClassifier,
     block_number: int,
     trace_db_session: Optional[orm.Session],
     should_write_classified_traces: bool = True,
@@ -65,7 +65,8 @@ async def inspect_block(
     total_transactions = len(
         set(t.transaction_hash for t in block.traces if t.transaction_hash is not None)
     )
-    logger.info(f"Block: {block_number} -- Total transactions: {total_transactions}")
+    logger.info(
+        f"Block: {block_number} -- Total transactions: {total_transactions}")
 
     classified_traces = trace_classifier.classify(block.traces)
     logger.info(
@@ -84,19 +85,17 @@ async def inspect_block(
 
     swaps = get_swaps(classified_traces)
     logger.info(f"Block: {block_number} -- Found {len(swaps)} swaps")
-
     delete_swaps_for_block(inspect_db_session, block_number)
     write_swaps(inspect_db_session, swaps)
 
     arbitrages = get_arbitrages(swaps)
     logger.info(f"Block: {block_number} -- Found {len(arbitrages)} arbitrages")
-
     delete_arbitrages_for_block(inspect_db_session, block_number)
     write_arbitrages(inspect_db_session, arbitrages)
 
     liquidations = get_liquidations(classified_traces)
-    logger.info(f"Block: {block_number} -- Found {len(liquidations)} liquidations")
-
+    logger.info(
+        f"Block: {block_number} -- Found {len(liquidations)} liquidations")
     delete_liquidations_for_block(inspect_db_session, block_number)
     write_liquidations(inspect_db_session, liquidations)
 

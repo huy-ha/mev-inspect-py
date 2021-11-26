@@ -50,35 +50,36 @@ class MEVInspector:
             base_provider=self.base_provider,
             w3=self.w3,
             geth=self.geth,
-            trace_clasifier=self.trace_classifier,
+            trace_classifier=self.trace_classifier,
             block_number=block,
             trace_db_session=self.trace_db_session,
         )
 
     async def inspect_many_blocks(self, after_block: int, before_block: int):
-        tasks = []
-        for block_number in range(after_block, before_block):
-            tasks.append(
-                asyncio.ensure_future(
-                    self.safe_inspect_block(block_number=block_number)
+        async with self.max_concurrency:
+            tasks = []
+            for block_number in range(after_block, before_block):
+                tasks.append(
+                    asyncio.ensure_future(
+                        self.safe_inspect_block(block_number=block_number)
+                    )
                 )
-            )
-        logger.info(f"Gathered {len(tasks)} blocks to inspect")
-        try:
-            await asyncio.gather(*tasks)
-        except CancelledError:
-            logger.info("Requested to exit, cleaning up...")
-        except Exception as e:
-            logger.error(f"Existed due to {type(e)}")
-            traceback.print_exc()
+            logger.info(f"Gathered {len(tasks)} blocks to inspect")
+            try:
+                await asyncio.gather(*tasks)
+            except CancelledError:
+                logger.info("Requested to exit, cleaning up...")
+            except Exception as e:
+                logger.error(f"Existed due to {type(e)}")
+                traceback.print_exc()
 
     async def safe_inspect_block(self, block_number: int):
-        async with self.max_concurrency:
-            return await inspect_block(
-                self.inspect_db_session,
-                self.base_provider,
-                self.w3,
-                self.trace_classifier,
-                block_number,
-                trace_db_session=self.trace_db_session,
-            )
+        return await inspect_block(
+            inspect_db_session=self.inspect_db_session,
+            base_provider=self.base_provider,
+            w3=self.w3,
+            geth=self.geth,
+            trace_classifier=self.trace_classifier,
+            block_number=block_number,
+            trace_db_session=self.trace_db_session,
+        )

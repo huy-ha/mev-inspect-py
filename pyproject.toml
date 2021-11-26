@@ -2,11 +2,11 @@
 name = "mev_inspect"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Huy <huy@cs.columbia.edu>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-web3 = "^5.23.0"
+web3 = { git = "https://github.com/huy-ha/web3.py.git" }
 pydantic = "^1.8.2"
 hexbytes = "^0.2.1"
 click = "^8.0.1"

@@ -339,11 +339,14 @@ def unwrap_tx_receipt_for_parity(block_json, tx_pos_in_block, tx_receipt) -> Rec
             transaction_hash=tx_receipt["transactionHash"],
             transaction_index=tx_pos_in_block,
             gas_used=tx_receipt["gasUsed"],
-            effective_gas_price=tx_receipt["effectiveGasPrice"],
+            # TODO (FlashBabies): this was tx_receipt['effectiveGasPrice'],
+            # but this is not present, so using l1GasPrice for now
+            # but need to revisit to see which field should
+            # correspond to this effectiveGasPrice
+            effective_gas_price=tx_receipt["l1GasPrice"],
             cumulative_gas_used=tx_receipt["cumulativeGasUsed"],
             to=tx_receipt["to"],
         )
-
     except Exception as e:
         print("error while decoding receipt", tx_receipt, e)
 

@@ -51,7 +51,6 @@ async def fetch_block_command(block_number: int, rpc: str):
 @click.argument("before_block", type=int)
 @click.option("--rpc", default=lambda: os.environ.get(RPC_URL_ENV, ""))
 @click.option("--geth/--no-geth", default=False)
-
 @click.option(
     "--max-concurrency",
     type=int,
@@ -78,11 +77,12 @@ async def inspect_many_blocks_command(
         trace_db_session,
         max_concurrency=max_concurrency,
         request_timeout=request_timeout,
-        geth
+        geth=geth
     )
     await inspector.inspect_many_blocks(
         after_block=after_block, before_block=before_block
     )
+
 
 def get_rpc_url() -> str:
     return os.environ["RPC_URL"]
