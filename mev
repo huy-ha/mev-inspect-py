@@ -37,15 +37,17 @@ case "$1" in
 	;;
   inspect)
         block_number=$2
+        rpc_type=$3
         echo "Inspecting block $block_number"
-        kubectl exec -ti deploy/mev-inspect -- poetry run inspect-block $block_number
+        kubectl exec -ti deploy/mev-inspect -- poetry run inspect-block $block_number --type $rpc_type
 	;;
   inspect-many)
         start_block_number=$2
         end_block_number=$3
+        rpc_type=$4
         echo "Inspecting from block $start_block_number to $end_block_number"
         kubectl exec -ti deploy/mev-inspect -- \
-            poetry run inspect-many-blocks $start_block_number $end_block_number
+            poetry run inspect-many-blocks $start_block_number $end_block_number --type $rpc_type
 	;;
   test)
         echo "Running tests"
@@ -55,6 +57,19 @@ case "$1" in
       block_number=$2
       echo "Fetching block $block_number"
       kubectl exec -ti deploy/mev-inspect -- poetry run fetch-block $block_number
+  ;;
+  prices)
+        shift
+        case "$1" in
+          fetch-all)
+                echo "Running price fetch-all"
+                kubectl exec -ti deploy/mev-inspect -- \
+                    poetry run fetch-all-prices
+            ;;
+          *)
+            echo "prices usage: "$1" {fetch-all}"
+            exit 1
+        esac
   ;;
   exec)
         shift

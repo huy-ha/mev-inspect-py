@@ -12,6 +12,7 @@ from mev_inspect.block import create_from_block_number
 from mev_inspect.classifiers.trace import TraceClassifier
 from mev_inspect.inspect_block import inspect_block
 from mev_inspect.provider import get_base_provider
+from mev_inspect.utils import RPCType
 
 logger = logging.getLogger(__name__)
 
@@ -22,24 +23,24 @@ class MEVInspector:
         rpc: str,
         inspect_db_session: orm.Session,
         trace_db_session: Optional[orm.Session],
-        geth: bool = True,
+        type: RPCType = RPCType.parity,
         max_concurrency: int = 1,
         request_timeout: int = 300,
     ):
         self.inspect_db_session = inspect_db_session
         self.trace_db_session = trace_db_session
-        self.base_provider = get_base_provider(
-            rpc, request_timeout=request_timeout)
+        self.base_provider = get_base_provider(rpc, request_timeout, type)
+        self.type = type
         self.w3 = Web3(self.base_provider, modules={
                        "eth": (AsyncEth,)}, middlewares=[])
         self.trace_classifier = TraceClassifier()
         self.max_concurrency = asyncio.Semaphore(max_concurrency)
-        self.geth = geth
 
     async def create_from_block(self, block_number: int):
         return await create_from_block_number(
             base_provider=self.base_provider,
             w3=self.w3,
+            type=self.type,
             block_number=block_number,
             trace_db_session=self.trace_db_session,
         )
@@ -49,7 +50,7 @@ class MEVInspector:
             inspect_db_session=self.inspect_db_session,
             base_provider=self.base_provider,
             w3=self.w3,
-            geth=self.geth,
+            type=self.type,
             trace_classifier=self.trace_classifier,
             block_number=block,
             trace_db_session=self.trace_db_session,
@@ -78,7 +79,7 @@ class MEVInspector:
             inspect_db_session=self.inspect_db_session,
             base_provider=self.base_provider,
             w3=self.w3,
-            geth=self.geth,
+            type=self.type,
             trace_classifier=self.trace_classifier,
             block_number=block_number,
             trace_db_session=self.trace_db_session,

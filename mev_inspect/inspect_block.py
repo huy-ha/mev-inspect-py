@@ -11,6 +11,16 @@ from mev_inspect.crud.arbitrages import (
     delete_arbitrages_for_block,
     write_arbitrages,
 )
+
+from mev_inspect.crud.punks import (
+    delete_punk_snipes_for_block,
+    write_punk_snipes,
+    delete_punk_bids_for_block,
+    write_punk_bids,
+    delete_punk_bid_acceptances_for_block,
+    write_punk_bid_acceptances,
+)
+
 from mev_inspect.crud.blocks import (
     delete_block,
     write_block,
@@ -31,9 +41,11 @@ from mev_inspect.crud.liquidations import (
     write_liquidations,
 )
 from mev_inspect.miner_payments import get_miner_payments
+from mev_inspect.punks import get_punk_bid_acceptances, get_punk_bids, get_punk_snipes
 from mev_inspect.swaps import get_swaps
 from mev_inspect.transfers import get_transfers
 from mev_inspect.liquidations import get_liquidations
+from mev_inspect.utils import RPCType
 
 
 logger = logging.getLogger(__name__)
@@ -43,7 +55,7 @@ async def inspect_block(
     inspect_db_session: orm.Session,
     base_provider,
     w3: Web3,
-    geth: bool,
+    type: RPCType,
     trace_classifier: TraceClassifier,
     block_number: int,
     trace_db_session: Optional[orm.Session],
@@ -52,7 +64,7 @@ async def inspect_block(
     block = await create_from_block_number(
         base_provider,
         w3,
-        geth,
+        type,
         block_number,
         trace_db_session,
     )
@@ -98,6 +110,21 @@ async def inspect_block(
         f"Block: {block_number} -- Found {len(liquidations)} liquidations")
     delete_liquidations_for_block(inspect_db_session, block_number)
     write_liquidations(inspect_db_session, liquidations)
+
+    punk_bids = get_punk_bids(classified_traces)
+    delete_punk_bids_for_block(inspect_db_session, block_number)
+    write_punk_bids(inspect_db_session, punk_bids)
+
+    punk_bid_acceptances = get_punk_bid_acceptances(classified_traces)
+    delete_punk_bid_acceptances_for_block(inspect_db_session, block_number)
+    write_punk_bid_acceptances(inspect_db_session, punk_bid_acceptances)
+
+    punk_snipes = get_punk_snipes(punk_bids, punk_bid_acceptances)
+    logger.info(
+        f"Block: {block_number} -- Found {len(punk_snipes)} punk snipes")
+
+    delete_punk_snipes_for_block(inspect_db_session, block_number)
+    write_punk_snipes(inspect_db_session, punk_snipes)
 
     miner_payments = get_miner_payments(
         block.miner, block.base_fee_per_gas, classified_traces, block.receipts
