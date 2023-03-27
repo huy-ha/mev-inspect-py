@@ -1,6 +1,7 @@
 from typing import List, Optional
 from pydantic import BaseModel
 from mev_inspect.schemas.traces import Protocol
+import json
 
 
 class Liquidation(BaseModel):
@@ -14,3 +15,6 @@ class Liquidation(BaseModel):
     transaction_hash: str
     trace_address: List[int]
     block_number: str
+
+    def toJson(self):
+        return json.dumps(self, default=lambda o: o.__dict__)

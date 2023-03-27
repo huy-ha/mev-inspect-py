@@ -4,6 +4,7 @@ import traceback
 from asyncio import CancelledError
 from typing import Optional
 
+
 from sqlalchemy import orm
 from web3 import Web3
 from web3.eth import AsyncEth
@@ -46,6 +47,7 @@ class MEVInspector:
         )
 
     async def inspect_single_block(self, block: int):
+        # print("in inspector.py, reached inspect_single_block")
         return await inspect_block(
             inspect_db_session=self.inspect_db_session,
             base_provider=self.base_provider,
@@ -59,12 +61,36 @@ class MEVInspector:
     async def inspect_many_blocks(self, after_block: int, before_block: int):
         async with self.max_concurrency:
             tasks = []
+            counter = 0
             for block_number in range(after_block, before_block):
                 tasks.append(
                     asyncio.ensure_future(
                         self.safe_inspect_block(block_number=block_number)
                     )
                 )
+                counter += 1
+                if (counter % 25 == 0):
+                    print()
+                    logger.info(
+                        "entering batch: "
+                        + str(int(counter/25))
+                        + " from "
+                        + str(int(abs(before_block-after_block)/25)))
+                    print()
+                    try:
+                        await asyncio.gather(*tasks)
+                    except CancelledError:
+                        logger.info("Requested to exit, cleaning up...")
+                    except Exception as e:
+                        logger.error(f"Existed due to {type(e)}")
+                        traceback.print_exc()
+                    print()
+                    logger.info(
+                        "Percentage: " + str((counter * 100 / abs(before_block-after_block))) + "%")
+                    print()
+                    await asyncio.sleep(15)
+                    # print("leaving batch: " + str(counter/25))
+
             logger.info(f"Gathered {len(tasks)} blocks to inspect")
             try:
                 await asyncio.gather(*tasks)

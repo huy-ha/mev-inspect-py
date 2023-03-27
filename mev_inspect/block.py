@@ -11,6 +11,8 @@ from mev_inspect.schemas.blocks import Block
 from mev_inspect.schemas.receipts import Receipt
 from mev_inspect.schemas.traces import Trace, TraceType
 from mev_inspect.utils import RPCType, hex_to_int
+from mev_inspect.db import get_db
+from firebase_admin import firestore
 
 
 logger = logging.getLogger(__name__)
@@ -44,12 +46,15 @@ async def create_from_block_number(
 
     if trace_db_session is not None:
         block = _find_block(trace_db_session, block_number)
-
+    # print("reached2")
     if block is None:
         if type is RPCType.parity:
             block = await _fetch_block_parity(w3, base_provider, block_number)
         elif type is RPCType.geth:
+            # print("geth")
             block = await _fetch_block_geth(w3, base_provider, block_number)
+            # print(block)
+            # print("\n\n\n")
         else:
             logger.error(f"RPCType not known - {type}")
             raise ValueError
@@ -93,13 +98,28 @@ async def _fetch_block_parity(
 async def _fetch_block_geth(
         w3, base_provider, block_number: int) -> Block:
     block_json = await asyncio.gather(w3.eth.get_block(block_number))
-
+    db = get_db()
+    db.collection(u'attempts').document(str(block_number)).set(
+        {u'Blocknumber': block_number, u'Amount': firestore.Increment(1)}, merge=True)
+    # print()
+    # print("base_provider: ", base_provider)
+    # print()
+    # print("block_number: ", block_number)
+    # print()
+    # print("BLOCK JSON : ", block_json)
+    # print()
+    # print(
+    #    "now call await geth_get_tx_traces_parity_format(base_provider, block_json[0])")
     # Separate calls to help with load during block tracing
     traces = await geth_get_tx_traces_parity_format(base_provider, block_json[0])
+    # print("traces: \n", traces)
+    # print()
     geth_tx_receipts = await geth_get_tx_receipts_async(
         base_provider, block_json[0]["transactions"]
     )
+    # print("geth_tx_receipts: \n", geth_tx_receipts)
     receipts = geth_receipts_translator(block_json[0], geth_tx_receipts)
+    # print("receipts: \n", receipts)
     base_fee_per_gas = 0  # Polygon specific, TODO for other chains
 
     return Block(
@@ -233,17 +253,24 @@ def get_transaction_hashes(calls: List[Trace]) -> List[str]:
 
 async def geth_get_tx_traces_parity_format(base_provider, block_json: dict):
     block_hash = block_json["hash"]
+    # print("now in execution of geth_get_tx_traces_parity_format")
+    # print("calling await geth_get_tx_traces")
     block_trace = await geth_get_tx_traces(base_provider, block_hash)
+
     parity_traces = []
+    # print("printing blocktraces: ", block_trace)
     for idx, trace in enumerate(block_trace["result"]):
         if "result" in trace:
             parity_traces.extend(
                 unwrap_tx_trace_for_parity(block_json, idx, trace["result"])
             )
+    # print("finished geth_get_tx_traces_parity_format")
     return parity_traces
 
 
 async def geth_get_tx_traces(base_provider, block_hash):
+    # print("entering geth_get_tx_traces with args: ", base_provider, block_hash)
+    # print("calling await base_provider.make_request : debug_traceBlockByHash")
     block_trace = await base_provider.make_request(
         "debug_traceBlockByHash", [block_hash.hex(), {"tracer": "callTracer"}]
     )
@@ -299,6 +326,7 @@ def unwrap_tx_trace_for_parity(
 
 async def geth_get_tx_receipts_task(base_provider, tx):
     receipt = await base_provider.make_request("eth_getTransactionReceipt", [tx.hex()])
+    # print(receipt)
     return receipt
 
 

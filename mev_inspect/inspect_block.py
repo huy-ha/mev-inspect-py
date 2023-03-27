@@ -4,6 +4,8 @@ from typing import Optional
 from sqlalchemy import orm
 from web3 import Web3
 
+import json
+
 from mev_inspect.arbitrages import get_arbitrages
 from mev_inspect.block import create_from_block_number
 from mev_inspect.classifiers.trace import TraceClassifier
@@ -47,6 +49,9 @@ from mev_inspect.transfers import get_transfers
 from mev_inspect.liquidations import get_liquidations
 from mev_inspect.utils import RPCType
 
+from mev_inspect.db import get_db
+from firebase_admin import firestore
+
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +66,7 @@ async def inspect_block(
     trace_db_session: Optional[orm.Session],
     should_write_classified_traces: bool = True,
 ):
+    # print("entered inspect_block")
     block = await create_from_block_number(
         base_provider,
         w3,
@@ -71,8 +77,8 @@ async def inspect_block(
 
     logger.info(f"Block: {block_number} -- Total traces: {len(block.traces)}")
 
-    delete_block(inspect_db_session, block_number)
-    write_block(inspect_db_session, block)
+    # delete_block(inspect_db_session, block_number)
+   # write_block(inspect_db_session, block)
 
     total_transactions = len(
         set(t.transaction_hash for t in block.traces if t.transaction_hash is not None)
@@ -85,50 +91,64 @@ async def inspect_block(
         f"Block: {block_number} -- Returned {len(classified_traces)} classified traces"
     )
 
-    if should_write_classified_traces:
-        delete_classified_traces_for_block(inspect_db_session, block_number)
-        write_classified_traces(inspect_db_session, classified_traces)
+    # if should_write_classified_traces:
+    # delete_classified_traces_for_block(inspect_db_session, block_number)
+    # write_classified_traces(inspect_db_session, classified_traces)
 
     transfers = get_transfers(classified_traces)
     logger.info(f"Block: {block_number} -- Found {len(transfers)} transfers")
-
-    delete_transfers_for_block(inspect_db_session, block_number)
-    write_transfers(inspect_db_session, transfers)
+    t = list(map(lambda x: x.toJson(), transfers))
+    # delete_transfers_for_block(inspect_db_session, block_number)
+    # write_transfers(inspect_db_session, transfers)
 
     swaps = get_swaps(classified_traces)
     logger.info(f"Block: {block_number} -- Found {len(swaps)} swaps")
-    delete_swaps_for_block(inspect_db_session, block_number)
-    write_swaps(inspect_db_session, swaps)
+    s = list(map(lambda x: x.toJson(), swaps))
+    # delete_swaps_for_block(inspect_db_session, block_number)
+    # write_swaps(inspect_db_session, swaps)
 
     arbitrages = get_arbitrages(swaps)
     logger.info(f"Block: {block_number} -- Found {len(arbitrages)} arbitrages")
-    delete_arbitrages_for_block(inspect_db_session, block_number)
-    write_arbitrages(inspect_db_session, arbitrages)
+    a = list(map(lambda x: x.toJson(), arbitrages))
+    # delete_arbitrages_for_block(inspect_db_session, block_number)
+    # write_arbitrages(inspect_db_session, arbitrages)
 
     liquidations = get_liquidations(classified_traces)
     logger.info(
         f"Block: {block_number} -- Found {len(liquidations)} liquidations")
-    delete_liquidations_for_block(inspect_db_session, block_number)
-    write_liquidations(inspect_db_session, liquidations)
+    l = list(map(lambda x: x.toJson(), liquidations))
+    # delete_liquidations_for_block(inspect_db_session, block_number)
+    # write_liquidations(inspect_db_session, liquidations)
 
     punk_bids = get_punk_bids(classified_traces)
-    delete_punk_bids_for_block(inspect_db_session, block_number)
-    write_punk_bids(inspect_db_session, punk_bids)
+    # delete_punk_bids_for_block(inspect_db_session, block_number)
+    # write_punk_bids(inspect_db_session, punk_bids)
 
     punk_bid_acceptances = get_punk_bid_acceptances(classified_traces)
-    delete_punk_bid_acceptances_for_block(inspect_db_session, block_number)
-    write_punk_bid_acceptances(inspect_db_session, punk_bid_acceptances)
+    # delete_punk_bid_acceptances_for_block(inspect_db_session, block_number)
+    # write_punk_bid_acceptances(inspect_db_session, punk_bid_acceptances)
 
     punk_snipes = get_punk_snipes(punk_bids, punk_bid_acceptances)
     logger.info(
         f"Block: {block_number} -- Found {len(punk_snipes)} punk snipes")
 
-    delete_punk_snipes_for_block(inspect_db_session, block_number)
-    write_punk_snipes(inspect_db_session, punk_snipes)
+    # delete_punk_snipes_for_block(inspect_db_session, block_number)
+    # write_punk_snipes(inspect_db_session, punk_snipes)
 
     miner_payments = get_miner_payments(
         block.miner, block.base_fee_per_gas, classified_traces, block.receipts
     )
 
-    delete_miner_payments_for_block(inspect_db_session, block_number)
-    write_miner_payments(inspect_db_session, miner_payments)
+    # delete_miner_payments_for_block(inspect_db_session, block_number)
+    # write_miner_payments(inspect_db_session, miner_payments)
+    if len(a) == 0 and len(l) == 0:
+        return
+    db = get_db()
+    db.collection(u'Arbitrage').document(str(block_number)).set(
+        {
+            u'Blocknumber': block_number,
+            u'Transfers': t,
+            u'Swaps': s,
+            u'Arbitrages': a,
+            u'Liquidations': l
+        }, merge=True)

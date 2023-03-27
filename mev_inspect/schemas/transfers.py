@@ -1,3 +1,6 @@
+import json
+from json import JSONEncoder
+
 from typing import List
 
 from pydantic import BaseModel
@@ -14,3 +17,6 @@ class Transfer(BaseModel):
     to_address: str
     amount: int
     token_address: str
+
+    def toJson(self):
+        return json.dumps(self, default=lambda o: o.__dict__)

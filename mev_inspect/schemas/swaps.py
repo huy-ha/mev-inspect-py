@@ -4,6 +4,9 @@ from pydantic import BaseModel
 
 from mev_inspect.schemas.traces import Protocol
 
+import json
+from typing import List
+
 
 class Swap(BaseModel):
     abi_name: str
@@ -19,3 +22,9 @@ class Swap(BaseModel):
     token_out_amount: int
     protocol: Optional[Protocol]
     error: Optional[str]
+
+    def toJson(self):
+        return json.dumps(self, default=lambda o: o.__dict__)
+
+    def toDict(self):
+        return dict(self)

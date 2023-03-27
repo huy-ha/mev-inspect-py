@@ -52,7 +52,8 @@ class TraceClassifier:
 
     def _classify_call(self, trace) -> Optional[ClassifiedTrace]:
         action = CallAction(**trace.action)
-        result = CallResult(**trace.result) if trace.result is not None else None
+        result = CallResult(
+            **trace.result) if trace.result is not None else None
 
         for spec in self._classifier_specs:
             if spec.valid_contract_addresses is not None:
