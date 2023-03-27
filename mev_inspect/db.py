@@ -5,6 +5,11 @@ from sqlalchemy import create_engine, orm
 from sqlalchemy.orm import sessionmaker
 
 
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
+
 def get_trace_database_uri() -> Optional[str]:
     username = os.getenv("TRACE_DB_USER")
     password = os.getenv("TRACE_DB_PASSWORD")
@@ -22,6 +27,7 @@ def get_inspect_database_uri():
     password = os.getenv("POSTGRES_PASSWORD")
     host = os.getenv("POSTGRES_HOST")
     db_name = "mev_inspect"
+    # print("TEST123: ", username, password, host, db_name)
     return f"postgresql://{username}:{password}@{host}/{db_name}"
 
 
@@ -36,7 +42,17 @@ def _get_session(uri: str):
 
 def get_inspect_session() -> orm.Session:
     uri = get_inspect_database_uri()
+    # print("uri for DB: ", uri)
+    cred = credentials.Certificate(
+        'mev-inspec-firebase-adminsdk-ooyw5-afc76e7b2b.json')
+    app = firebase_admin.initialize_app(cred)
+    global db
+    db = firestore.client()
     return _get_session(uri)
+
+
+def get_db():
+    return db
 
 
 def get_trace_session() -> Optional[orm.Session]:

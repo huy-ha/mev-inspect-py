@@ -1,3 +1,4 @@
+import os
 from typing import List
 from uuid import uuid4
 
@@ -50,7 +51,18 @@ def write_arbitrages(
             )
 
     if len(arbitrage_models) > 0:
-        db_session.bulk_save_objects(arbitrage_models)
+        print("writing to file: ")
+
+        path = os.path.dirname(__file__)
+        file = str(path+"arbitrage.txt")
+        print(file)
+        with open(file, "a") as f:
+            f.write(str(arbitrage_models))
+            f.write("\n")
+            f.write(str(swap_arbitrage_ids))
+            f.write("\n\n\n")
+            print("done")
+        ''' db_session.bulk_save_objects(arbitrage_models)
         db_session.execute(
             """
             INSERT INTO arbitrage_swaps
@@ -61,4 +73,4 @@ def write_arbitrages(
             params=swap_arbitrage_ids,
         )
 
-        db_session.commit()
+        db_session.commit() '''
